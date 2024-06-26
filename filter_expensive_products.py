@@ -21,11 +21,6 @@ for product in products:
         total_price += price
         product_lines.append(f"{title}: {price}")
 
-    for review in product['reviews']:
-        if review['rating'] == 5:
-            high_rating_titles.append(title)
-            break 
-
 file_path = 'products_over_15.txt'
 with open(file_path, 'w') as file:
     for line in product_lines:
