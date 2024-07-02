@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
 import models
@@ -18,22 +18,23 @@ def get_db():
     finally:
         db.close()
 
-
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the FastAPI application!"}
 
-
 @app.get("/products/", response_model=List[schemas.Product])
-def read_products(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
-    products = db.query(models.Product).offset(skip).limit(limit).all()
+def read_products(
+    page: int = Query(1, ge=1),  # Varsayılan değer 1, en az 1 olmalı
+    db: Session = Depends(get_db)
+):
+    count = 3  # Her sayfada gösterilecek ürün sayısı
+    offset = (page - 1) * count
+    products = db.query(models.Product).order_by(models.Product.id).offset(offset).limit(count).all()
     return products
-
 
 @app.get("/favicon.ico")
 async def favicon():
     return ""
-
 
 def add_sample_products(db: Session):
     for i in range(1, 51):
@@ -45,7 +46,6 @@ def add_sample_products(db: Session):
         db.add(product)
     db.commit()
 
-
 @asynccontextmanager
 async def lifespan_context(app: FastAPI):
     db = next(get_db())
@@ -54,4 +54,3 @@ async def lifespan_context(app: FastAPI):
     yield
 
 app.router.lifespan = lifespan_context
-
