@@ -43,6 +43,13 @@ def read_products(
     products = db.query(models.Product).order_by(models.Product.id).offset(offset).limit(count).all()
     return products
 
+@app.get("/products/{product_id}", response_model=schemas.Product)
+def read_product(product_id: int, db: Session = Depends(get_db)):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
 class FilterParams(BaseModel):
     page: int = 1
     divisor: int
@@ -178,4 +185,3 @@ def update_product_price(product_id: int, update_data: UpdateProductPrice, db: S
                 file.write(json.dumps(product_data, ensure_ascii=False) + "\n")
 
     return {"message": "Product price updated successfully", "product": product}
-
