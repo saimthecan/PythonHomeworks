@@ -8,9 +8,20 @@ SECRET_KEY = 'your_secret_key'
 
 # Bellekte veri tutma (örnek veri yapısı)
 users = {}
+roles_permissions = {}
 data_store = {
-    "data": "initial data"
+    "product": "initial product data",
+    "item": "initial item data"
 }
+
+def load_permissions():
+    global roles_permissions
+    with open('roles_permissions.txt', 'r') as file:
+        for line in file:
+            user, *permissions = line.strip().split()
+            roles_permissions[user] = permissions
+
+load_permissions()
 
 @app.route('/')
 def home():
@@ -78,30 +89,25 @@ def token_required(f):
     decorated_function.__name__ = f.__name__
     return decorated_function
 
-@app.route('/protected', methods=['GET'])
-@token_required
-def protected(username):
-    return jsonify({'message': f'Welcome {username}!'})
+def check_permission(username, endpoint):
+    user_permissions = roles_permissions.get(username, [])
+    if endpoint not in user_permissions:
+        return False
+    return True
 
-@app.route('/update', methods=['PUT'])
+@app.route('/product', methods=['GET'])
 @token_required
-def update_data(username):
-    data = request.get_json()
-    if 'data' in data:
-        data_store['data'] = data['data']
-        return jsonify({'message': 'Data has been updated!', 'user': username, 'data': data_store['data']})
-    return jsonify({'message': 'No data provided!'}), 400
+def get_product(username):
+    if not check_permission(username, 'product'):
+        return jsonify({'message': 'Permission denied!'}), 403
+    return jsonify({'product': data_store['product']})
 
-@app.route('/delete', methods=['DELETE'])
+@app.route('/item', methods=['GET'])
 @token_required
-def delete_data(username):
-    data_store['data'] = ""
-    return jsonify({'message': 'Data has been deleted!', 'user': username})
-
-@app.route('/data', methods=['GET'])
-@token_required
-def get_data(username):
-    return jsonify({'data': data_store['data'], 'user': username})
+def get_item(username):
+    if not check_permission(username, 'item'):
+        return jsonify({'message': 'Permission denied!'}), 403
+    return jsonify({'item': data_store['item']})
 
 if __name__ == '__main__':
     app.run(debug=True)
