@@ -4,12 +4,14 @@ import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from pymongo import MongoClient
 from flask_swagger_ui import get_swaggerui_blueprint
+from dotenv import load_dotenv
+import os
 
 app = Flask(__name__)
-SECRET_KEY = 'your_secret_key'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # MongoDB bağlantısı
-client = MongoClient("mongodb+srv://canozgen:Sifreyok.11@cluster0.wgohfvg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+client = MongoClient(os.getenv('MONGODB_URI'))
 db = client["flask_db"]
 
 users_collection = db["users"]
