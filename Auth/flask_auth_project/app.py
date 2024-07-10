@@ -2,17 +2,22 @@ from flask import Flask, request, jsonify
 import jwt
 import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from pymongo import MongoClient
+from flask_swagger_ui import get_swaggerui_blueprint
 
 app = Flask(__name__)
 SECRET_KEY = 'your_secret_key'
 
+# MongoDB bağlantısı
+client = MongoClient("mongodb+srv://canozgen:Sifreyok.11@cluster0.wgohfvg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+db = client["flask_db"]
+
+users_collection = db["users"]
+products_collection = db["products"]
+
 # Bellekte veri tutma (örnek veri yapısı)
-users = {}
 roles_permissions = {}
-data_store = {
-    "product": "initial product data",
-    "item": "initial item data"
-}
+
 
 def load_permissions():
     global roles_permissions
@@ -36,7 +41,8 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    if username not in users or not check_password_hash(users[username], password):
+    user = users_collection.find_one({"username": username})
+    if not user or not check_password_hash(user['password'], password):
         return jsonify({'message': 'Invalid credentials'}), 401
 
     token = create_token(username)
@@ -51,11 +57,11 @@ def signup():
     username = data.get('username')
     password = data.get('password')
 
-    if username in users:
+    if users_collection.find_one({"username": username}):
         return jsonify({'message': 'User already exists!'}), 400
 
     hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-    users[username] = hashed_password
+    users_collection.insert_one({"username": username, "password": hashed_password})
     return jsonify({'message': 'User created successfully!'}), 201
 
 def create_token(username):
@@ -100,14 +106,48 @@ def check_permission(username, endpoint):
 def get_product(username):
     if not check_permission(username, 'product'):
         return jsonify({'message': 'Permission denied!'}), 403
-    return jsonify({'product': data_store['product']})
+    product = products_collection.find_one({}, {"_id": 0})
+    return jsonify({'product': product})
 
 @app.route('/item', methods=['GET'])
 @token_required
 def get_item(username):
     if not check_permission(username, 'item'):
         return jsonify({'message': 'Permission denied!'}), 403
-    return jsonify({'item': data_store['item']})
+    item = products_collection.find_one({}, {"_id": 0})
+    return jsonify({'item': item})
+
+@app.route('/product', methods=['POST'])
+@token_required
+def add_product(username):
+    if not check_permission(username, 'product'):
+        return jsonify({'message': 'Permission denied!'}), 403
+    data = request.get_json()
+    products_collection.insert_one(data)
+    return jsonify({'message': 'Product added successfully'})
+
+@app.route('/item', methods=['POST'])
+@token_required
+def add_item(username):
+    if not check_permission(username, 'item'):
+        return jsonify({'message': 'Permission denied!'}), 403
+    data = request.get_json()
+    products_collection.insert_one(data)
+    return jsonify({'message': 'Item added successfully'})
+
+# Swagger Ayarları
+SWAGGER_URL = '/docs'  # Swagger UI için URL
+API_URL = '/static/swagger.json'  # Swagger dosyasının URL'si
+
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={  # Swagger UI yapılandırması
+        'app_name': "Flask JWT Authentication Example"
+    }
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 if __name__ == '__main__':
     app.run(debug=True)
